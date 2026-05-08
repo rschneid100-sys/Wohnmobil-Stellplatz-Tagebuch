@@ -24,10 +24,10 @@ button{border:none;border-radius:14px;padding:14px 16px;font-size:17px;font-weig
 input,textarea,select{width:100%;padding:13px;border-radius:12px;border:1px solid #d1d5db;font-size:16px;font-family:Arial,sans-serif}
 textarea{min-height:95px;resize:vertical}.actions{display:flex;gap:10px}.actions button{flex:1}
 .card{background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;padding:13px;margin-top:12px;font-size:16px;line-height:1.45}
-.card b{color:var(--main-dark);font-size:18px}.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.card b{color:var(--main-dark);font-size:18px}.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.option-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.check-option{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:12px;font-size:16px;display:flex;align-items:center;gap:10px}.check-option input{width:22px;height:22px}.photo-preview{max-width:100%;border-radius:14px;margin-top:10px;border:1px solid #e5e7eb}.weather-box{background:#eefdf8;border:1px solid #b7eadc;border-radius:12px;padding:10px;margin-top:10px}
 .search{margin:12px 0}.small{font-size:14px;color:var(--muted)}.status{font-size:16px;color:#374151;margin:8px 0;line-height:1.4}
 footer{text-align:center;color:var(--muted);padding:18px;font-size:14px}
-@media(max-width:520px){header h1{font-size:23px}.actions{flex-direction:column}.card-actions{grid-template-columns:1fr}}
+@media(max-width:520px){header h1{font-size:23px}.actions{flex-direction:column}.card-actions,.option-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -43,9 +43,24 @@ footer{text-align:center;color:var(--muted);padding:18px;font-size:14px}
 <input id="platzName" type="text" placeholder="Name des Stellplatzes, z. B. Breitmatten Lahr">
 <input id="platzAdresse" type="text" placeholder="Adresse oder Ort, z. B. 77933 Lahr">
 <input id="platzGPS" type="text" placeholder="GPS manuell, z. B. 48.339000,7.873000">
+<input id="platzPreis" type="text" placeholder="Preis, z. B. 18 € inkl. Strom">
 <select id="platzBewertung">
 <option value="">⭐ Bewertung auswählen</option><option value="⭐">⭐</option><option value="⭐⭐">⭐⭐</option><option value="⭐⭐⭐">⭐⭐⭐</option><option value="⭐⭐⭐⭐">⭐⭐⭐⭐</option><option value="⭐⭐⭐⭐⭐">⭐⭐⭐⭐⭐</option>
 </select>
+<select id="platzRuhe">
+<option value="">🌙 ruhig / laut auswählen</option>
+<option value="🌙 sehr ruhig">🌙 sehr ruhig</option>
+<option value="🙂 ruhig">🙂 ruhig</option>
+<option value="🚗 etwas Verkehr">🚗 etwas Verkehr</option>
+<option value="🔊 laut">🔊 laut</option>
+</select>
+<div class="option-grid">
+<label class="check-option"><input id="platzStrom" type="checkbox"> ⚡ Strom vorhanden</label>
+<label class="check-option"><input id="platzDusche" type="checkbox"> 🚿 Dusche vorhanden</label>
+<label class="check-option"><input id="platzHund" type="checkbox"> 🐶 hundefreundlich</label>
+</div>
+<input id="platzFoto" type="file" accept="image/*" onchange="previewPhoto(event)">
+<img id="fotoPreview" class="photo-preview" style="display:none;">
 <textarea id="platzNotiz" placeholder="Notizen, z. B. ruhig, Strom vorhanden, gut für Molly, schöne Radwege"></textarea>
 <div class="actions">
 <button class="btn-main" onclick="getCurrentLocation()">📡 Standort holen</button>
@@ -63,20 +78,123 @@ footer{text-align:center;color:var(--muted);padding:18px;font-size:14px}
 </main>
 <footer>Speichert lokal auf diesem Gerät. Funktioniert als iPhone-Web-App im Vollbild.</footer>
 <script>
-let currentLatitude=null,currentLongitude=null,editingStellplatzId=null;
+let currentLatitude=null,currentLongitude=null,editingStellplatzId=null,currentPhotoData="";
 function speak(text){if(!("speechSynthesis" in window))return;window.speechSynthesis.cancel();const s=new SpeechSynthesisUtterance(text);s.lang="de-DE";s.rate=.85;s.pitch=1;window.speechSynthesis.speak(s)}
 function getPlaces(){return JSON.parse(localStorage.getItem("stellplatz_tagebuch")||"[]")}
 function setPlaces(p){localStorage.setItem("stellplatz_tagebuch",JSON.stringify(p))}
 function updateCounter(){document.getElementById("platzCounter").textContent=getPlaces().length}
+function previewPhoto(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    currentPhotoData=e.target.result;
+    const img=document.getElementById("fotoPreview");
+    img.src=currentPhotoData;
+    img.style.display="block";
+  };
+  reader.readAsDataURL(file);
+}
 function getCurrentLocation(){const st=document.getElementById("gpsStatus");if(!navigator.geolocation){st.innerHTML="⚠️ Dein Gerät unterstützt keine Standortermittlung.";speak("Dein Gerät unterstützt keine Standortermittlung.");return}st.innerHTML="📡 Standort wird ermittelt ...";speak("Ich ermittle den aktuellen Standort.");navigator.geolocation.getCurrentPosition(pos=>{currentLatitude=Number(pos.coords.latitude);currentLongitude=Number(pos.coords.longitude);document.getElementById("platzGPS").value=currentLatitude.toFixed(6)+","+currentLongitude.toFixed(6);st.innerHTML="✅ Standort erfasst:<br>Breite: "+currentLatitude.toFixed(6)+"<br>Länge: "+currentLongitude.toFixed(6)+"<br>Genauigkeit: ca. "+Math.round(pos.coords.accuracy)+" Meter"},err=>{st.innerHTML="⚠️ Standort konnte nicht ermittelt werden. Bitte Standortfreigabe erlauben.";speak("Der Standort konnte nicht ermittelt werden.")},{enableHighAccuracy:true,timeout:15000,maximumAge:0})}
 function parseGpsInput(){const v=document.getElementById("platzGPS").value.trim();if(!v)return{lat:currentLatitude,lng:currentLongitude};const parts=v.split(",");if(parts.length!==2)return{lat:null,lng:null};return{lat:Number(parts[0].trim()),lng:Number(parts[1].trim())}}
-function saveStellplatz(){const name=document.getElementById("platzName").value.trim(),adresse=document.getElementById("platzAdresse").value.trim(),note=document.getElementById("platzNotiz").value.trim(),bewertung=document.getElementById("platzBewertung").value,gps=parseGpsInput();if(!name){alert("Bitte einen Namen für den Stellplatz eingeben.");return}let places=getPlaces();if(editingStellplatzId!==null){const i=places.findIndex(p=>Number(p.id)===Number(editingStellplatzId));if(i!==-1){places[i].name=name;places[i].adresse=adresse;places[i].note=note;places[i].bewertung=bewertung;if(Number.isFinite(gps.lat)&&Number.isFinite(gps.lng)){places[i].latitude=gps.lat;places[i].longitude=gps.lng}places[i].updated=new Date().toLocaleString("de-DE");setPlaces(places);resetForm();renderStellplaetze();speak("Stellplatz aktualisiert.");return}}places.unshift({id:Date.now(),name,adresse,note,bewertung,latitude:Number.isFinite(gps.lat)?gps.lat:null,longitude:Number.isFinite(gps.lng)?gps.lng:null,created:new Date().toLocaleString("de-DE"),updated:""});setPlaces(places);resetForm();renderStellplaetze();speak("Stellplatz gespeichert.")}
-function editStellplatz(id){const data=getPlaces().find(x=>Number(x.id)===Number(id));if(!data){alert("Stellplatz nicht gefunden.");return}editingStellplatzId=id;document.getElementById("platzName").value=data.name||"";document.getElementById("platzAdresse").value=data.adresse||"";document.getElementById("platzNotiz").value=data.note||"";document.getElementById("platzBewertung").value=data.bewertung||"";if(Number.isFinite(Number(data.latitude))&&Number.isFinite(Number(data.longitude))){document.getElementById("platzGPS").value=Number(data.latitude).toFixed(6)+","+Number(data.longitude).toFixed(6)}else{document.getElementById("platzGPS").value=""}document.getElementById("gpsStatus").innerHTML="✏️ Stellplatz wird bearbeitet. Änderungen mit „Speichern“ übernehmen.";window.scrollTo({top:0,behavior:"smooth"});speak("Stellplatz zum Bearbeiten geladen.")}
+function saveStellplatz(){
+  const name=document.getElementById("platzName").value.trim(),
+  adresse=document.getElementById("platzAdresse").value.trim(),
+  note=document.getElementById("platzNotiz").value.trim(),
+  bewertung=document.getElementById("platzBewertung").value,
+  ruhe=document.getElementById("platzRuhe").value,
+  preis=document.getElementById("platzPreis").value.trim(),
+  strom=document.getElementById("platzStrom").checked,
+  dusche=document.getElementById("platzDusche").checked,
+  hund=document.getElementById("platzHund").checked,
+  gps=parseGpsInput();
+
+  if(!name){alert("Bitte einen Namen für den Stellplatz eingeben.");return}
+  let places=getPlaces();
+
+  if(editingStellplatzId!==null){
+    const i=places.findIndex(p=>Number(p.id)===Number(editingStellplatzId));
+    if(i!==-1){
+      places[i].name=name;places[i].adresse=adresse;places[i].note=note;places[i].bewertung=bewertung;places[i].ruhe=ruhe;places[i].preis=preis;
+      places[i].strom=strom;places[i].dusche=dusche;places[i].hund=hund;
+      if(currentPhotoData)places[i].photo=currentPhotoData;
+      if(Number.isFinite(gps.lat)&&Number.isFinite(gps.lng)){places[i].latitude=gps.lat;places[i].longitude=gps.lng}
+      places[i].updated=new Date().toLocaleString("de-DE");
+      setPlaces(places);resetForm();renderStellplaetze();speak("Stellplatz aktualisiert.");return;
+    }
+  }
+
+  places.unshift({id:Date.now(),name,adresse,note,bewertung,ruhe,preis,strom,dusche,hund,photo:currentPhotoData,latitude:Number.isFinite(gps.lat)?gps.lat:null,longitude:Number.isFinite(gps.lng)?gps.lng:null,created:new Date().toLocaleString("de-DE"),updated:""});
+  setPlaces(places);resetForm();renderStellplaetze();speak("Stellplatz gespeichert.");
+}
+function editStellplatz(id){
+  const data=getPlaces().find(x=>Number(x.id)===Number(id));if(!data){alert("Stellplatz nicht gefunden.");return}
+  editingStellplatzId=id;currentPhotoData=data.photo||"";
+  document.getElementById("platzName").value=data.name||"";
+  document.getElementById("platzAdresse").value=data.adresse||"";
+  document.getElementById("platzNotiz").value=data.note||"";
+  document.getElementById("platzBewertung").value=data.bewertung||"";
+  document.getElementById("platzRuhe").value=data.ruhe||"";
+  document.getElementById("platzPreis").value=data.preis||"";
+  document.getElementById("platzStrom").checked=!!data.strom;
+  document.getElementById("platzDusche").checked=!!data.dusche;
+  document.getElementById("platzHund").checked=!!data.hund;
+  if(Number.isFinite(Number(data.latitude))&&Number.isFinite(Number(data.longitude)))document.getElementById("platzGPS").value=Number(data.latitude).toFixed(6)+","+Number(data.longitude).toFixed(6);else document.getElementById("platzGPS").value="";
+  const img=document.getElementById("fotoPreview");
+  if(currentPhotoData){img.src=currentPhotoData;img.style.display="block"}else{img.style.display="none";img.src=""}
+  document.getElementById("gpsStatus").innerHTML="✏️ Stellplatz wird bearbeitet. Änderungen mit „Speichern“ übernehmen.";
+  window.scrollTo({top:0,behavior:"smooth"});speak("Stellplatz zum Bearbeiten geladen.");
+}
 function deleteStellplatz(id){if(!confirm("Diesen Stellplatz wirklich löschen?"))return;setPlaces(getPlaces().filter(x=>Number(x.id)!==Number(id)));renderStellplaetze();speak("Stellplatz gelöscht.")}
-function resetForm(){editingStellplatzId=null;currentLatitude=null;currentLongitude=null;document.getElementById("platzName").value="";document.getElementById("platzAdresse").value="";document.getElementById("platzGPS").value="";document.getElementById("platzNotiz").value="";document.getElementById("platzBewertung").value="";document.getElementById("gpsStatus").innerHTML="Noch kein Standort erfasst."}
+function resetForm(){
+  editingStellplatzId=null;currentLatitude=null;currentLongitude=null;currentPhotoData="";
+  ["platzName","platzAdresse","platzGPS","platzNotiz","platzBewertung","platzRuhe","platzPreis"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("platzStrom").checked=false;document.getElementById("platzDusche").checked=false;document.getElementById("platzHund").checked=false;document.getElementById("platzFoto").value="";
+  const img=document.getElementById("fotoPreview");img.style.display="none";img.src="";
+  document.getElementById("gpsStatus").innerHTML="Noch kein Standort erfasst.";
+}
 function openGoogleMaps(lat,lng){lat=Number(lat);lng=Number(lng);if(!Number.isFinite(lat)||!Number.isFinite(lng)){alert("Für diesen Stellplatz sind keine gültigen GPS-Daten gespeichert.");return}const coords=lat.toFixed(6)+","+lng.toFixed(6);window.location.href="https://www.google.com/maps?q="+encodeURIComponent(coords)}
-function renderStellplaetze(){const c=document.getElementById("savedStellplatz"),q=(document.getElementById("stellplatzSearch").value||"").toLowerCase(),places=getPlaces();updateCounter();const filtered=places.filter(d=>((d.name||"")+" "+(d.adresse||"")+" "+(d.note||"")+" "+(d.bewertung||"")).toLowerCase().includes(q));if(filtered.length===0){c.innerHTML=places.length===0?"<p>Noch keine Stellplätze gespeichert.</p>":"<p>Keine passenden Stellplätze gefunden.</p>";return}let h="<h3>📚 Stellplätze ("+filtered.length+")</h3>";filtered.forEach(d=>{const lat=Number(d.latitude),lng=Number(d.longitude),hasGps=Number.isFinite(lat)&&Number.isFinite(lng);h+='<div class="card"><b>📍 '+d.name+'</b><br>'+(d.bewertung?d.bewertung+"<br>":"")+(d.adresse?"📌 "+d.adresse+"<br>":"")+(d.note?"📝 "+d.note+"<br>":"")+"🕒 Erstellt: "+d.created+"<br>"+(d.updated?"✏️ Geändert: "+d.updated+"<br>":"")+(hasGps?"🌐 "+lat.toFixed(6)+", "+lng.toFixed(6):"🌐 Keine GPS-Daten gespeichert")+'<div class="card-actions">'+(hasGps?'<button class="btn-main" onclick="openGoogleMaps('+lat+','+lng+')">🗺️ Google Maps</button><a href="https://maps.apple.com/?q='+lat.toFixed(6)+','+lng.toFixed(6)+'" target="_blank"><button class="btn-dark">🍎 Apple Karten</button></a>':"")+'<button class="btn-dark" onclick="editStellplatz('+d.id+')">✏️ Bearbeiten</button><button class="btn-danger" onclick="deleteStellplatz('+d.id+')">🗑️ Löschen</button></div><p class="small">GPS-Test: '+(hasGps?lat.toFixed(6)+", "+lng.toFixed(6):"keine Daten")+"</p></div>"});c.innerHTML=h}
+async function showWeather(id,lat,lng){
+  lat=Number(lat);lng=Number(lng);
+  const box=document.getElementById("weather-"+id);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)){box.innerHTML="⚠️ Keine GPS-Daten für Wetter vorhanden.";return}
+  box.innerHTML="🌦️ Wetter wird geladen ...";
+  try{
+    const url="https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lng+"&current=temperature_2m,precipitation,wind_speed_10m&timezone=auto";
+    const res=await fetch(url);
+    const data=await res.json();
+    const c=data.current;
+    box.innerHTML='<div class="weather-box">🌡️ Temperatur: '+c.temperature_2m+' °C<br>🌧️ Niederschlag: '+c.precipitation+' mm<br>💨 Wind: '+c.wind_speed_10m+' km/h</div>';
+    speak("Wetter am Stellplatz geladen.");
+  }catch(e){box.innerHTML="⚠️ Wetter konnte nicht geladen werden.";}
+}
+function renderStellplaetze(){
+  const c=document.getElementById("savedStellplatz"),q=(document.getElementById("stellplatzSearch").value||"").toLowerCase(),places=getPlaces();updateCounter();
+  const filtered=places.filter(d=>((d.name||"")+" "+(d.adresse||"")+" "+(d.note||"")+" "+(d.bewertung||"")+" "+(d.ruhe||"")+" "+(d.preis||"")+" "+(d.strom?" strom":"")+" "+(d.dusche?" dusche":"")+" "+(d.hund?" hund hundefreundlich molly":"")).toLowerCase().includes(q));
+  if(filtered.length===0){c.innerHTML=places.length===0?"<p>Noch keine Stellplätze gespeichert.</p>":"<p>Keine passenden Stellplätze gefunden.</p>";return}
+  let h="<h3>📚 Stellplätze ("+filtered.length+")</h3>";
+  filtered.forEach(d=>{
+    const lat=Number(d.latitude),lng=Number(d.longitude),hasGps=Number.isFinite(lat)&&Number.isFinite(lng);
+    h+='<div class="card"><b>📍 '+d.name+'</b><br>'+
+    (d.bewertung?d.bewertung+"<br>":"")+
+    (d.preis?"💶 "+d.preis+"<br>":"")+
+    (d.ruhe?d.ruhe+"<br>":"")+
+    (d.strom?"⚡ Strom vorhanden<br>":"")+
+    (d.dusche?"🚿 Dusche vorhanden<br>":"")+
+    (d.hund?"🐶 hundefreundlich<br>":"")+
+    (d.adresse?"📌 "+d.adresse+"<br>":"")+
+    (d.note?"📝 "+d.note+"<br>":"")+
+    (d.photo?'<img class="photo-preview" src="'+d.photo+'">':"")+
+    "🕒 Erstellt: "+d.created+"<br>"+(d.updated?"✏️ Geändert: "+d.updated+"<br>":"")+
+    (hasGps?"🌐 "+lat.toFixed(6)+", "+lng.toFixed(6):"🌐 Keine GPS-Daten gespeichert")+
+    '<div class="card-actions">'+
+    (hasGps?'<button class="btn-main" onclick="openGoogleMaps('+lat+','+lng+')">🗺️ Google Maps</button><a href="https://maps.apple.com/?q='+lat.toFixed(6)+','+lng.toFixed(6)+'" target="_blank"><button class="btn-dark">🍎 Apple Karten</button></a><button class="btn-main" onclick="showWeather('+d.id+','+lat+','+lng+')">🌦️ Wetter</button>':"")+
+    '<button class="btn-dark" onclick="editStellplatz('+d.id+')">✏️ Bearbeiten</button><button class="btn-danger" onclick="deleteStellplatz('+d.id+')">🗑️ Löschen</button></div><div id="weather-'+d.id+'"></div><p class="small">GPS-Test: '+(hasGps?lat.toFixed(6)+", "+lng.toFixed(6):"keine Daten")+"</p></div>";
+  });
+  c.innerHTML=h;
+}
 renderStellplaetze();
+
 </script>
 </body>
 </html>
